@@ -138,12 +138,7 @@
     state))
 
 (defun find-state (topic)
-  (labels ((f (lst)
-              (if lst
-                (if (equal (caar lst) topic)
-                  (cdar lst)
-                  (f (cdr lst))))))
-    (f *states*)))
+  (cdr (assoc topic *state*)))
 
 (defun add-state (topic event)
   (let ((state (make-instance 'state)))
@@ -173,18 +168,15 @@
 (defmacro handle-json (url &body body)
   `(handle ,url
            (setf (content-type* *reply*) "application/json")
-           (format nil (json:encode-json-to-string
-                         (progn ,@body)))))
+           (format nil "~A~%" (json:encode-json-to-string
+                                (progn ,@body)))))
 
 (defun json-body ()
   (decode-json-from-string
     (raw-post-data :force-text t)))
 
 (defun jref (o field)
-  (let ((r (assoc field o)))
-    (if (null r)
-      nil
-      (cdr r))))
+  (cdr (assoc field o)))
 
 (defun event-json (e)
   (if (null e)
@@ -203,9 +195,11 @@
     (last . ,(event-json (slot-value st 'last-event)))))
 
 (defun run-api (&key (port 7109))
+  ;; GET /state?topic=blah
   (handle-json "/state" (find-state (parameter "topic")))
+  ;; GET /states
   (handle-json "/states" *states*)
-
+  ;; POST /events
   (handle-json "/events"
                (if (eq (request-method* *request*) :post)
                  (let ((b (json-body)))
@@ -234,7 +228,7 @@
                           (slot-value state 'last-event)
                           "still"
                           (slot-value state 'state))
-                        (setf (slot-value (cdar lst) 'notified) (unix-now))))
+                        (setf (slot-value state 'notified) (unix-now))))
                     (f (cdr lst))))))
       (f *states*))))
 
