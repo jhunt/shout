@@ -8,7 +8,9 @@
         :drakma
         :cl-json)
   (:export :send
-           :attach))
+           :attach
+           :color
+           :summary))
 
 (defpackage :api
   (:use :common-lisp
@@ -24,6 +26,19 @@
 
 (defun env (name default)
   (or (sb-unix::posix-getenv name) default))
+
+(defun color (state)
+  (if (or (equal state "fixed")
+          (equal state "working"))
+    "good"
+    "danger"))
+
+(defun summary (msg link)
+  (let ((m (or msg "(no message provided)")))
+    (if (null link)
+      (format nil "~A" m)
+      (format nil "~A <~A>" m link))))
+
 
 (defun attach (text &key title color)
   (remove-if #'null
@@ -100,27 +115,15 @@
 (defmethod state-is-ok? ((st state))
   (event-ok? (last-event st)))
 
-(defun slack-color (edge)
-  (if (or (equal edge "fixed")
-          (equal edge "working"))
-    "good"
-    "danger"))
-
-(defun slack-summary (msg link)
-  (let ((m (or msg "(no message provided)")))
-    (if (null link)
-      (format nil "~A" m)
-      (format nil "~A <~A>" m link))))
-
 (defun notify-about-state (state event mode edge)
   (slack:send
     (format nil "~A is ~A ~A!" (topic state) mode edge)
     :attachments (list
                    (slack:attach
-                     (slack-summary
+                     (slack:summary
                        (event-message event)
                        (event-link    event))
-                       :color (slack-color edge)))))
+                     :color (slack:color edge)))))
 
 (defun trigger-edge (state event type)
   (notify-about-state state event "now" type))
