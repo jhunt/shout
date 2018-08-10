@@ -60,32 +60,45 @@
 (defvar *states* '())
 
 (defclass event ()
-  (message
-    link
-    ok
-    occurred
-    reported))
+  ((message
+    :initarg :message
+    :accessor event-message)
+   (link
+    :initarg :link
+    :accessor event-link)
+   (ok
+    :initarg :ok
+    :accessor event-ok?)
+   (occurred-at
+    :initarg :occurred-at
+    :initform (unix-now)
+    :accessor event-occurred-at)
+   (reported-at
+    :initarg :reported-at
+    :initform (unix-now)
+    :accessor event-reported-at)))
 
 (defclass state ()
-  (name
-    state
-    notified
-    previous-event
-    first-event
-    last-event))
+  ((topic
+    :initarg :name
+    :accessor topic)
+   (status
+    :initarg :status
+    :accessor status-of)
+   (notified-at
+    :accessor last-notified-at)
+   (previous-event
+    :initarg :previously
+    :accessor previous-event)
+   (first-event
+    :initarg :initially
+    :accessor first-event)
+   (last-event
+    :initarg :recently
+    :accessor last-event)))
 
-(defun new-event (message link ok occurred)
-  (let ((e (make-instance 'event))
-        (now (unix-now)))
-    (setf (slot-value e 'message) message
-          (slot-value e 'link) link
-          (slot-value e 'ok) ok
-          (slot-value e 'occurred) (or occurred now)
-          (slot-value e 'reported) now)
-    e))
-
-(defun event-ok? (e)
-  (slot-value e 'ok))
+(defmethod state-is-ok? ((st state))
+  (event-ok? (last-event st)))
 
 (defun slack-color (edge)
   (if (or (equal edge "fixed")
@@ -100,15 +113,14 @@
       (format nil "~A <~A>" m link))))
 
 (defun notify-about-state (state event mode edge)
-  (let ((topic (slot-value state 'name)))
-    (slack:send
-      (format nil "~A is ~A ~A!" topic mode edge)
-      :attachments (list
-                     (slack:attach
-                       (slack-summary
-                         (slot-value event 'message)
-                         (slot-value event 'link))
-                        :color (slack-color edge))))))
+  (slack:send
+    (format nil "~A is ~A ~A!" (topic state) mode edge)
+    :attachments (list
+                   (slack:attach
+                     (slack-summary
+                       (event-message event)
+                       (event-link    event))
+                       :color (slack-color edge)))))
 
 (defun trigger-edge (state event type)
   (notify-about-state state event "now" type))
@@ -124,31 +136,29 @@
 
 (defun ingest-event (state event)
   (let ((edge (transition-state
-                (slot-value state 'last-event)
+                (last-event state)
                 event)))
-    (if (not (eq (event-ok? (slot-value state 'last-event))
+    (if (not (eq (event-ok? (last-event state))
                  (event-ok? event)))
       (progn
         (trigger-edge state event edge)
-        (setf (slot-value state 'previous-event)
-              (slot-value state 'last-event))))
+        (setf (previous-event state)
+              (last-event     state))))
 
-    (setf (slot-value state 'state) edge
-          (slot-value state 'last-event) event)
+    (setf (status-of state) edge
+          (last-event state) event)
     state))
 
 (defun find-state (topic)
   (cdr (assoc topic *states* :test #'equal)))
 
 (defun add-state (topic event)
-  (let ((state (make-instance 'state)))
-    (setf (slot-value state 'name) topic
-          (slot-value state 'notified) (unix-now)
-          (slot-value state 'previous-event) nil
-          (slot-value state 'first-event) event
-          (slot-value state 'last-event) event
-          (slot-value state 'state) (if (event-ok? event) "working" "broken")
-
+  (let ((state (make-instance 'state :name topic
+                                     :status (if (event-ok? event) "working" "broken"))))
+    (setf (last-notified-at state) (unix-now)
+          (previous-event   state) nil
+          (first-event      state) event
+          (last-event       state) event
           *states* (acons topic state *states*))
     state))
 
@@ -181,18 +191,18 @@
 (defun event-json (e)
   (if (null e)
     nil
-    `((occurred-at . ,(slot-value e 'occurred))
-      (reported-at . ,(slot-value e 'reported))
-      (ok . ,(event-ok? e))
-      (message . ,(slot-value e 'message))
-      (link . ,(slot-value e 'link)))))
+    `((occurred-at . ,(event-occurred-at e))
+      (reported-at . ,(event-reported-at e))
+      (ok          . ,(event-ok? e))
+      (message     . ,(event-message e))
+      (link        . ,(event-link e)))))
 
 (defun state-json (st)
-  `((name . ,(slot-value st 'name))
-    (state . ,(slot-value st 'state))
-    (previous . ,(event-json (slot-value st 'previous-event)))
-    (first . ,(event-json (slot-value st 'first-event)))
-    (last . ,(event-json (slot-value st 'last-event)))))
+  `((name     . ,(topic st))
+    (state    . ,(status-of st))
+    (previous . ,(event-json (previous-event st)))
+    (first    . ,(event-json (first-event st)))
+    (last     . ,(event-json (last-event st)))))
 
 (defun run-api (&key (port 7109))
   ;; GET /state?topic=blah
@@ -206,10 +216,11 @@
                    (state-json
                      (set-state
                        (jref b :topic)
-                       (new-event (jref b :message)
-                                  (jref b :link)
-                                  (jref b :ok)
-                                  (jref b :occurred-at)))))
+                       (make-instance 'event
+                         :message     (jref b :message)
+                         :link        (jref b :link)
+                         :ok          (jref b :ok)
+                         :occurred-at (jref b :ocurred-at)))))
                  `((oops . "not a POST")
                    (got . ,(request-method *request*)))))
 
@@ -220,15 +231,15 @@
     (labels ((f (lst)
                 (if (not (null lst))
                   (let ((state (cdar lst)))
-                    (if (and (not (event-ok? (slot-value state 'last-event)))
-                             (> deadline (slot-value state 'notified)))
+                    (if (and (not (state-is-ok? state))
+                             (> deadline (last-notified-at state)))
                       (progn
                         (notify-about-state
                           state
-                          (slot-value state 'last-event)
+                          (last-event state)
                           "still"
-                          (slot-value state 'state))
-                        (setf (slot-value state 'notified) (unix-now))))
+                          (status-of state))
+                        (setf (last-notified-at state) (unix-now))))
                     (f (cdr lst))))))
       (f *states*))))
 
