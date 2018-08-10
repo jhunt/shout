@@ -209,7 +209,7 @@
                        (new-event (jref b :message)
                                   (jref b :link)
                                   (jref b :ok)
-                                  (jref b :ocurred-at)))))
+                                  (jref b :occurred-at)))))
                  `((oops . "not a POST")
                    (got . ,(request-method *request*)))))
 
