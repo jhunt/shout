@@ -1,3 +1,4 @@
+#!/usr/bin/sbcl --script
 (load "shout.cl")
 (format t " ######  ##     ##  #######  ##     ## ######## #### ~%")
 (format t "##    ## ##     ## ##     ## ##     ##    ##    #### ~%")
