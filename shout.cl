@@ -194,8 +194,8 @@
 (defun event-json (e)
   (if (null e)
     nil
-    `((occurred-at . ,(event-occurred-at e))
-      (reported-at . ,(event-reported-at e))
+    `((occurred_at . ,(event-occurred-at e))
+      (reported_at . ,(event-reported-at e))
       (ok          . ,(event-ok? e))
       (message     . ,(event-message e))
       (link        . ,(event-link e)))))
@@ -209,9 +209,13 @@
 
 (defun run-api (&key (port 7109))
   ;; GET /state?topic=blah
-  (handle-json "/state" (find-state (parameter "topic")))
-  ;; GET /states
-  (handle-json "/states" *states*)
+  (handle-json "/state"
+               (find-state (parameter "topic")))
+
+   ; GET /states
+  (handle-json "/states"
+               (mapcar #'(lambda (a)
+                           (state-json (cdr a))) *states*))
   ;; POST /events
   (handle-json "/events"
                (if (eq (request-method* *request*) :post)
