@@ -138,7 +138,7 @@
     state))
 
 (defun find-state (topic)
-  (cdr (assoc topic *state*)))
+  (cdr (assoc topic *states* :test #'equal)))
 
 (defun add-state (topic event)
   (let ((state (make-instance 'state)))
