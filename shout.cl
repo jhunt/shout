@@ -101,19 +101,25 @@
     :initarg :status
     :accessor status-of)
    (notified-at
+    :initform nil
     :accessor last-notified-at)
    (previous-event
-    :initarg :previously
+    :initarg :previous-event
+    :initform nil
     :accessor previous-event)
    (first-event
-    :initarg :initially
+    :initarg :first-event
+    :initform nil
     :accessor first-event)
    (last-event
-    :initarg :recently
+    :initarg :last-event
+    :initform nil
     :accessor last-event)))
 
-(defmethod state-is-ok? ((st state))
-  (event-ok? (last-event st)))
+(defun state-is-ok? (st)
+  (and st
+       (last-event st)
+       (event-ok? (last-event st))))
 
 (defun notify-about-state (state event mode edge)
   (slack:send
@@ -207,6 +213,44 @@
     (first    . ,(event-json (first-event st)))
     (last     . ,(event-json (last-event st)))))
 
+(defun event-from-json (json)
+  (when json
+    (make-instance 'event
+                   :message     (jref json :message)
+                   :ok          (jref json :ok)
+                   :link        (jref json :link)
+                   :occurred-at (jref json :occurred-at)
+                   :reported-at (jref json :reported-at))))
+
+(defun state-from-json (json)
+  (make-instance 'state
+                 :name   (jref json :name)
+                 :status (jref json :status)
+                 :previous-event (event-from-json (jref json :previous))
+                 :first-event    (event-from-json (jref json :first))
+                 :last-event     (event-from-json (jref json :last))))
+
+(defun read-database (path)
+  (let ((raw (with-open-file (in path :direction :input :if-does-not-exist nil)
+               (when in
+                 (json:decode-json-from-string
+                   (format nil "~{~A~^, ~}"
+                     (loop for line = (read-line in nil)
+                           while line
+                           collect line))))))
+        (db '()))
+    (loop for state in raw do
+          (setf db (acons (jref state :name)
+                          (state-from-json state)
+                          db)))
+    db))
+
+(defun write-database (path db)
+  (with-open-file (out path :direction :output :if-exists :supersede)
+    (format out "~A~%" (json:encode-json-to-string
+                         (mapcar #'(lambda (pair)
+                                     (state-json (cdr pair))) db)))))
+
 (defun run-api (&key (port 7109))
   ;; GET /state?topic=blah
   (handle-json "/state"
@@ -234,11 +278,13 @@
   (hunchentoot:start (make-instance 'hunchentoot:easy-acceptor :port port)))
 
 (defun scan (expiry)
+  (write-database "states.db" *states*)
   (let ((deadline (- (unix-now) expiry)))
     (labels ((f (lst)
                 (if (not (null lst))
                   (let ((state (cdar lst)))
                     (if (and (not (state-is-ok? state))
+                             (last-notified-at state)
                              (> deadline (last-notified-at state)))
                       (progn
                         (notify-about-state
@@ -252,6 +298,7 @@
 
 (defun run (&key (port *default-port*)
                  (expiry *default-expiry*))
+  (setf *states* (read-database "test.db"))
   (sb-thread:make-thread
     (lambda ()
       (loop
