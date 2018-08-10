@@ -149,7 +149,7 @@
           (slot-value state 'last-event) event
           (slot-value state 'state) (if (event-ok? event) "working" "broken")
 
-          *states* (cons (cons topic state) *states*))
+          *states* (acons topic state *states*))
     state))
 
 (defun set-state (topic event)
