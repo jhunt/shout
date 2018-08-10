@@ -1,0 +1,28 @@
+#!/bin/bash
+
+topic=${1:-something}
+ok=${2:-ok}
+message=${3:-(no message provided)}
+link=${4:-}
+
+case ${ok} in
+yes|y|ok|true|t)
+  ok=true ;;
+*)
+  ok=false ;;
+esac
+
+case ${topic} in
+ls)
+  curl -Lv http://localhost:7109/states | jq -r .
+  ;;
+*)
+  curl -Lv http://localhost:7109/events -X POST -d '
+{
+  "topic":   "'"$topic"'",
+  "message": "'"$message"'",
+  "link":    "'"$link"'",
+  "ok":      '$ok'
+}
+' | jq -r . ;;
+esac
