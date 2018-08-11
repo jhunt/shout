@@ -299,9 +299,7 @@
 (defun run (&key (port *default-port*)
                  (expiry *default-expiry*))
   (setf *states* (read-database "test.db"))
-  (sb-thread:make-thread
-    (lambda ()
-      (loop
-        (scan expiry)
-        (sleep 60))))
-  (run-api :port port))
+  (run-api :port port)
+  (loop
+    (scan expiry)
+    (sleep 60)))
