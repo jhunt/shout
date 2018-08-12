@@ -9,11 +9,11 @@ How Do I Run It?
 
 You need `sbcl`, Steel Bank Common Lisp.  Once you have that:
 
-    sbcl --script run.cl
+    sbcl --script run.lisp
 
 If you want to hack around:
 
-    sbcl --load shout.cl --eval '(api:run)'
+    sbcl --load shout.lisp --eval '(api:run)'
 
 to get a Lisp REPL (read/eval/print loop).
 

@@ -2,7 +2,7 @@
 (require "asdf")
 (asdf:load-system :daemon)
 
-(load "shout.cl")
+(load "shout.lisp")
 (format t " ######  ##     ##  #######  ##     ## ######## #### ~%")
 (format t "##    ## ##     ## ##     ## ##     ##    ##    #### ~%")
 (format t "##       ##     ## ##     ## ##     ##    ##    #### ~%")
