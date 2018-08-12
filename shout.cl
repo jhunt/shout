@@ -12,6 +12,11 @@
            :color
            :summary))
 
+(defpackage :rules
+  (:use :common-lisp)
+  (:export :register-plugin
+           :eval/rules))
+
 (defpackage :api
   (:use :common-lisp
         :hunchentoot
@@ -303,3 +308,195 @@
   (loop
     (scan expiry)
     (sleep 60)))
+
+(in-package :rules)
+
+(defmacro aif (test &body body)
+  `(let ((it ,test))
+      (if it ,@body)))
+
+(defun weekday (&optional n)
+  (nth (or n (nth-value 6 (decode-universal-time
+                            (get-universal-time))))
+       '(monday tuesday wednesday thursday friday
+         saturday sunday)))
+
+(defun time-of-day ()
+  (multiple-value-bind
+        (s m h)
+        (decode-universal-time (get-universal-time))
+    (+ (* h 3600)
+       (* m 60)
+       s)))
+
+(defun hhmm-seconds (hhmm meridian)
+  (+ (* 60 (+ (mod hhmm 100)
+              (* 60 (floor (/ hhmm 100)))))
+     (cond ((eq meridian 'am) 0)
+           ((eq meridian 'pm) 43200)
+           (t (error "invalid meridian ~A" meridian)))))
+
+(defun assocify (lst)
+  (if lst
+      (acons (car lst)
+             (cadr lst)
+             (assocify (cddr lst)))))
+
+(defvar *environment* '())
+(defvar *parameters* '())
+(defvar *plugin-handlers* '())
+
+(defun register-plugin (plugin fn)
+  (setf *plugin-handlers*
+        (acons plugin fn *plugin-handlers*)))
+
+(defun registered-plugin? (plugin)
+  (not (null (assoc plugin *plugin-handlers*))))
+
+(defun dispatch-to-plugin (plugin args)
+  (let ((fn (cdr (assoc plugin *plugin-handlers*))))
+    (if fn
+        (funcall fn args)
+        (error "no such plugin ~A" plugin))))
+
+(defun param (name &optional default)
+  (aif (assoc name *parameters*)
+    (cdr it)
+    default))
+
+; pre-declaration -- will be re-defined shortly.
+;(defun -eval/args (args)
+;  (declare (ignore args)))
+
+(defun -eval/expr (expr)
+  (cond ((atom expr)
+         (if (symbolp expr)
+             (param expr)
+             expr))
+
+        ((eq (car expr) 'not)
+         (not (-eval/expr (cdr expr))))
+
+        ((eq (car expr) 'and)
+         (loop for sub in (cdr expr) do
+               (if (not (-eval/expr sub))
+                   (return-from -eval/expr nil)))
+         t)
+
+        ((eq (car expr) 'or)
+         (loop for sub in (cdr expr) do
+               (if (-eval/expr sub)
+                   (return-from -eval/expr t)))
+         nil)
+
+        ((eq (car expr) 'map)
+           (assocify (cdr expr)))
+
+        ((eq (car expr) 'concat)
+         (format nil "~{~a~%~}"
+                 (remove-if #'null (-eval/args (cdr expr)))))
+
+        ((eq (car expr) 'value)
+         (cdr (assoc (cadr expr) *environment*)))
+
+        ((eq (car expr) 'lookup)
+         (let ((map (cdr (assoc (cadr expr) *environment*))))
+           (loop for var in (cddr expr) do
+                 (aif (assoc var map)
+                   (return-from -eval/expr (cdr it))))
+           nil))
+
+        ((eq (car expr) 'if)
+           (cond ((-eval/expr (cadr expr))
+                  (-eval/expr (caddr expr)))
+                 ((cadddr expr)
+                  (-eval/expr (cadddr expr)))
+                 (t nil)))
+
+        ((eq (car expr) 'matches)
+           nil)
+
+        ((eq (car expr) 'is)
+           (equal (param 'topic)
+                  (-eval/expr (cadr expr))))
+
+        ((eq (car expr) 'on)
+         (cond ((equal (cdr expr) '(weekdays))
+                (find (weekday) '(monday
+                                  tuesday
+                                  wednesday
+                                  thursday
+                                  friday)))
+               ((equal (cdr expr) '(weekends))
+                (find (weekday) '(sunday
+                                  saturday)))
+               (t (find (weekday) (cdr expr)))))
+
+        ((eq (car expr) 'from)
+         (let ((start (nthcdr 1 expr))
+               (stop  (nthcdr 4 expr)))
+           (and (>= (time-of-day)
+                    (hhmm-seconds (car start) (cadr start)))
+                (<= (time-of-day)
+                    (hhmm-seconds (car stop) (cadr stop))))))
+
+        ((eq (car expr) 'after)
+         (> (time-of-day)
+            (hhmm-seconds (cadr expr) (caddr expr))))
+        ((eq (car expr) 'before)
+         (< (time-of-day)
+            (hhmm-seconds (cadr expr) (caddr expr))))
+
+        (t (error "expression syntax error ~A" (car expr)))))
+
+(defun -eval/args (args)
+  (loop for arg in args collect
+        (if (keywordp arg)
+            arg
+            (-eval/expr arg))))
+
+(defun -eval/body (body)
+  ;; handle SLACK, EMAIL, and other handlers
+  ;; properly evlis'ing the arguments
+  (loop for call in body do
+        (cond ((atom call)
+               (error "invalid WHEN body (~A is not a list)" call))
+              ((not (registered-plugin? (car call)))
+               (error "no plugin ~A registered..." (car call)))
+              (t (dispatch-to-plugin (car call)
+                                     (-eval/args (cdr call))))))
+  t)
+
+(defun -eval/when (clause)
+  (if (-eval/expr `(and ,@(car clause)))
+      (-eval/body (cdr clause))))
+
+(defun -eval/for (form)
+  (if (or (null form) (atom form))
+      (error "invalid form for FOR"))
+  (when (-eval/expr (if (atom (car form))
+                        `(is ,(car form))
+                        (car form)))
+    (loop for clause in (cdr form) do
+          (if (not (eq (car clause) 'when))
+              (error "unexpected ~A clause in FOR (should have been a WHEN)" (car clause)))
+          (when (-eval/when (cdr clause))
+                (return-from -eval/for t))))
+  nil)
+
+(defun -eval/set (form)
+  (if (not (eq (length form) 2))
+      (error "bad SET form"))
+  (setf *environment* (acons (car form)
+                             (-eval/expr (cadr form))
+                             *environment*)))
+
+(defun eval/rules (rules params)
+  (let ((*environment* '())
+        (*parameters* params))
+    (loop for rule in rules do
+          (case (car rule)
+            (for (-eval/for (cdr rule)))
+            (set (-eval/set (cdr rule)))
+            (otherwise (error "syntax error"))))
+    'all-done))
