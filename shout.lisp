@@ -69,6 +69,7 @@
 (in-package :api)
 
 (defvar *default-port* 7109)
+(defvar *default-dbfile* #p"/var/shout.db")
 (defvar *default-expiry* 86400)
 
 ;; the base offset of UNIX Epoch time into LISP Universal Time
@@ -302,9 +303,16 @@
       (f *states*))))
 
 (defun run (&key (port *default-port*)
+                 (dbfile *default-dbfile*)
                  (expiry *default-expiry*))
-  (setf *states* (read-database "test.db"))
+
+  (format t "reading database from file ~A~%" dbfile)
+  (setf *states* (read-database dbfile))
+
+  (format t "binding *:~A~%" port)
   (run-api :port port)
+
+  (format t "entering upkeep thread main loop...~%")
   (loop
     (scan expiry)
     (sleep 60)))
