@@ -8,14 +8,13 @@
         :drakma
         :cl-json)
   (:export :send
-           :attach
-           :color
-           :summary))
+           :attach))
 
 (defpackage :rules
   (:use :common-lisp)
   (:export :register-plugin
-           :eval/rules))
+           :eval/rules
+           :load/rules))
 
 (defpackage :api
   (:use :common-lisp
@@ -31,19 +30,6 @@
 
 (defun env (name default)
   (or (sb-unix::posix-getenv name) default))
-
-(defun color (state)
-  (if (or (equal state "fixed")
-          (equal state "working"))
-    "good"
-    "danger"))
-
-(defun summary (msg link)
-  (let ((m (or msg "(no message provided)")))
-    (if (null link)
-      (format nil "~A" m)
-      (format nil "~A <~A>" m link))))
-
 
 (defun attach (text &key title color)
   (remove-if #'null
@@ -66,6 +52,227 @@
                                     (icon_url . ,icon)
                                     (attachments . ,attachments)))))
 
+(in-package :rules)
+
+(defmacro aif (test &body body)
+  `(let ((it ,test))
+      (if it ,@body)))
+
+(defun weekday (&optional n)
+  (nth (or n (nth-value 6 (decode-universal-time
+                            (get-universal-time))))
+       '(monday tuesday wednesday thursday friday
+         saturday sunday)))
+
+(defun time-of-day ()
+  (multiple-value-bind
+        (s m h)
+        (decode-universal-time (get-universal-time))
+    (+ (* h 3600)
+       (* m 60)
+       s)))
+
+(defun hhmm-seconds (hhmm meridian)
+  (+ (* 60 (+ (mod hhmm 100)
+              (* 60 (floor (/ hhmm 100)))))
+     (cond ((eq meridian 'am) 0)
+           ((eq meridian 'pm) 43200)
+           (t (error "invalid meridian ~A" meridian)))))
+
+(defun assocify (lst)
+  (if lst
+      (acons (car lst)
+             (cadr lst)
+             (assocify (cddr lst)))))
+
+(defvar *environment* '())
+(defvar *parameters* '())
+(defvar *plugin-handlers* '())
+
+(defun register-plugin (plugin fn)
+  (setf *plugin-handlers*
+        (acons plugin fn *plugin-handlers*)))
+
+(defun registered-plugin? (plugin)
+  (not (null (assoc plugin *plugin-handlers*))))
+
+(defun dispatch-to-plugin (plugin args)
+  (let ((fn (cdr (assoc plugin *plugin-handlers*))))
+    (if fn
+        (funcall fn args)
+        (error "no such plugin ~A" plugin))))
+
+(defun param (name &optional default)
+  (aif (assoc name *parameters*)
+    (cdr it)
+    default))
+
+(defun replace-all (subj old new)
+  (with-output-to-string (out)
+    (loop with part-length = (length old)
+          for old-pos = 0 then (+ pos part-length)
+          for pos = (search old subj :start2 old-pos)
+          do (write-string subj out
+                           :start old-pos
+                           :end (or pos (length subj)))
+          when pos do (write-string new out)
+          while pos)))
+
+(defun interpolate (s)
+  (replace-all
+    (replace-all
+      (replace-all
+        (replace-all s "$topic" (param 'topic))
+        "$status" (param 'status))
+      "$message" (param 'message))
+    "$link" (param 'link)))
+
+; pre-declaration -- will be re-defined shortly.
+(eval-when (:execute)
+  (defun -eval/args (args)
+    (declare (ignore args))))
+
+(defun -eval/expr (expr)
+  (cond ((atom expr)
+         (cond ((symbolp expr)
+                (param expr))
+               ((stringp expr)
+                (interpolate expr))
+               (t expr)))
+
+        ((eq (car expr) 'not)
+         (not (-eval/expr (cdr expr))))
+
+        ((eq (car expr) 'and)
+         (loop for sub in (cdr expr) do
+               (if (not (-eval/expr sub))
+                   (return-from -eval/expr nil)))
+         t)
+
+        ((eq (car expr) 'or)
+         (loop for sub in (cdr expr) do
+               (if (-eval/expr sub)
+                   (return-from -eval/expr t)))
+         nil)
+
+        ((eq (car expr) 'map)
+           (assocify (cdr expr)))
+
+        ((eq (car expr) 'concat)
+         (format nil "~{~a~%~}"
+                 (remove-if #'null (-eval/args (cdr expr)))))
+
+        ((eq (car expr) 'value)
+         (cdr (assoc (cadr expr) *environment*)))
+
+        ((eq (car expr) 'lookup)
+         (let ((map (cdr (assoc (cadr expr) *environment*))))
+           (loop for var in (cddr expr) do
+                 (aif (assoc var map)
+                   (return-from -eval/expr (cdr it))))
+           nil))
+
+        ((eq (car expr) 'if)
+           (cond ((-eval/expr (cadr expr))
+                  (-eval/expr (caddr expr)))
+                 ((cadddr expr)
+                  (-eval/expr (cadddr expr)))
+                 (t nil)))
+
+        ((eq (car expr) 'matches)
+           nil)
+
+        ((eq (car expr) 'is)
+           (equal (param 'topic)
+                  (-eval/expr (cadr expr))))
+
+        ((eq (car expr) 'on)
+         (cond ((equal (cdr expr) '(weekdays))
+                (find (weekday) '(monday
+                                  tuesday
+                                  wednesday
+                                  thursday
+                                  friday)))
+               ((equal (cdr expr) '(weekends))
+                (find (weekday) '(sunday
+                                  saturday)))
+               (t (find (weekday) (cdr expr)))))
+
+        ((eq (car expr) 'from)
+         (let ((start (nthcdr 1 expr))
+               (stop  (nthcdr 4 expr)))
+           (and (>= (time-of-day)
+                    (hhmm-seconds (car start) (cadr start)))
+                (<= (time-of-day)
+                    (hhmm-seconds (car stop) (cadr stop))))))
+
+        ((eq (car expr) 'after)
+         (> (time-of-day)
+            (hhmm-seconds (cadr expr) (caddr expr))))
+        ((eq (car expr) 'before)
+         (< (time-of-day)
+            (hhmm-seconds (cadr expr) (caddr expr))))
+
+        (t (error "expression syntax error ~A" (car expr)))))
+
+(defun -eval/args (args)
+  (loop for arg in args collect
+        (if (keywordp arg)
+            arg
+            (-eval/expr arg))))
+
+(defun -eval/body (body)
+  ;; handle SLACK, EMAIL, and other handlers
+  ;; properly evlis'ing the arguments
+  (loop for call in body do
+        (cond ((atom call)
+               (error "invalid WHEN body (~A is not a list)" call))
+              ((not (registered-plugin? (car call)))
+               (error "no plugin ~A registered..." (car call)))
+              (t (dispatch-to-plugin (car call)
+                                     (-eval/args (cdr call))))))
+  t)
+
+(defun -eval/when (clause)
+  (if (-eval/expr `(and ,@(car clause)))
+      (-eval/body (cdr clause))))
+
+(defun -eval/for (form)
+  (if (or (null form) (atom form))
+      (error "invalid form for FOR"))
+  (when (-eval/expr (if (atom (car form))
+                        `(is ,(car form))
+                        (car form)))
+    (loop for clause in (cdr form) do
+          (if (not (eq (car clause) 'when))
+              (error "unexpected ~A clause in FOR (should have been a WHEN)" (car clause)))
+          (when (-eval/when (cdr clause))
+                (return-from -eval/for t))))
+  nil)
+
+(defun -eval/set (form)
+  (if (not (eq (length form) 2))
+      (error "bad SET form"))
+  (setf *environment* (acons (car form)
+                             (-eval/expr (cadr form))
+                             *environment*)))
+
+(defun eval/rules (rules params)
+  (let ((*environment* '())
+        (*parameters* params))
+    (loop for rule in rules do
+          (case (car rule)
+            (for (-eval/for (cdr rule)))
+            (set (-eval/set (cdr rule)))
+            (otherwise (error "syntax error"))))
+    'all-done))
+
+(defun load/rules (path)
+  (with-open-file (in path)
+    (loop for form = (read in)
+          while form
+          collect form)))
+
 (in-package :api)
 
 (defvar *default-port* 7109)
@@ -79,6 +286,7 @@
   (- (get-universal-time) *EPOCH*))
 
 (defvar *states* '())
+(defvar *rules* '())
 
 (defclass event ()
   ((message
@@ -128,14 +336,15 @@
        (event-ok? (last-event st))))
 
 (defun notify-about-state (state event mode edge)
-  (slack:send
-    (format nil "~A is ~A ~A!" (topic state) mode edge)
-    :attachments (list
-                   (slack:attach
-                     (slack:summary
-                       (event-message event)
-                       (event-link    event))
-                     :color (slack:color edge)))))
+  (rules:eval/rules *rules*
+    (pairlis
+      '(topic ok? status last-notified message link)
+      (list
+        (topic state)
+        (event-ok? event)
+        (format t "~A ~A" mode edge)
+        (event-message event)
+        (event-link    event)))))
 
 (defun trigger-edge (state event type)
   (notify-about-state state event "now" type))
@@ -304,10 +513,29 @@
 
 (defun run (&key (port *default-port*)
                  (dbfile *default-dbfile*)
+                 rules
                  (expiry *default-expiry*))
 
   (format t "reading database from file ~A~%" dbfile)
   (setf *states* (read-database dbfile))
+
+  (when rules
+    (format t "loading notification rules from file ~A~%" rules)
+    (setf *rules* (rules:load/rules rules)))
+
+  (format t "registering notification plugins...~%")
+  (labels ((arg (args name)
+             (nth (+ 1 (position name args)) args)))
+    (rules:register-plugin
+      'slack
+      #'(lambda (args)
+          (slack:send
+            (arg args :text)
+            :webhook (arg args :webhook)
+            :attachments (list
+                           (slack:attach
+                             (arg args :attach)
+                             :color (arg args :attach)))))))
 
   (format t "binding *:~A~%" port)
   (run-api :port port)
@@ -316,195 +544,3 @@
   (loop
     (scan expiry)
     (sleep 60)))
-
-(in-package :rules)
-
-(defmacro aif (test &body body)
-  `(let ((it ,test))
-      (if it ,@body)))
-
-(defun weekday (&optional n)
-  (nth (or n (nth-value 6 (decode-universal-time
-                            (get-universal-time))))
-       '(monday tuesday wednesday thursday friday
-         saturday sunday)))
-
-(defun time-of-day ()
-  (multiple-value-bind
-        (s m h)
-        (decode-universal-time (get-universal-time))
-    (+ (* h 3600)
-       (* m 60)
-       s)))
-
-(defun hhmm-seconds (hhmm meridian)
-  (+ (* 60 (+ (mod hhmm 100)
-              (* 60 (floor (/ hhmm 100)))))
-     (cond ((eq meridian 'am) 0)
-           ((eq meridian 'pm) 43200)
-           (t (error "invalid meridian ~A" meridian)))))
-
-(defun assocify (lst)
-  (if lst
-      (acons (car lst)
-             (cadr lst)
-             (assocify (cddr lst)))))
-
-(defvar *environment* '())
-(defvar *parameters* '())
-(defvar *plugin-handlers* '())
-
-(defun register-plugin (plugin fn)
-  (setf *plugin-handlers*
-        (acons plugin fn *plugin-handlers*)))
-
-(defun registered-plugin? (plugin)
-  (not (null (assoc plugin *plugin-handlers*))))
-
-(defun dispatch-to-plugin (plugin args)
-  (let ((fn (cdr (assoc plugin *plugin-handlers*))))
-    (if fn
-        (funcall fn args)
-        (error "no such plugin ~A" plugin))))
-
-(defun param (name &optional default)
-  (aif (assoc name *parameters*)
-    (cdr it)
-    default))
-
-; pre-declaration -- will be re-defined shortly.
-;(defun -eval/args (args)
-;  (declare (ignore args)))
-
-(defun -eval/expr (expr)
-  (cond ((atom expr)
-         (if (symbolp expr)
-             (param expr)
-             expr))
-
-        ((eq (car expr) 'not)
-         (not (-eval/expr (cdr expr))))
-
-        ((eq (car expr) 'and)
-         (loop for sub in (cdr expr) do
-               (if (not (-eval/expr sub))
-                   (return-from -eval/expr nil)))
-         t)
-
-        ((eq (car expr) 'or)
-         (loop for sub in (cdr expr) do
-               (if (-eval/expr sub)
-                   (return-from -eval/expr t)))
-         nil)
-
-        ((eq (car expr) 'map)
-           (assocify (cdr expr)))
-
-        ((eq (car expr) 'concat)
-         (format nil "~{~a~%~}"
-                 (remove-if #'null (-eval/args (cdr expr)))))
-
-        ((eq (car expr) 'value)
-         (cdr (assoc (cadr expr) *environment*)))
-
-        ((eq (car expr) 'lookup)
-         (let ((map (cdr (assoc (cadr expr) *environment*))))
-           (loop for var in (cddr expr) do
-                 (aif (assoc var map)
-                   (return-from -eval/expr (cdr it))))
-           nil))
-
-        ((eq (car expr) 'if)
-           (cond ((-eval/expr (cadr expr))
-                  (-eval/expr (caddr expr)))
-                 ((cadddr expr)
-                  (-eval/expr (cadddr expr)))
-                 (t nil)))
-
-        ((eq (car expr) 'matches)
-           nil)
-
-        ((eq (car expr) 'is)
-           (equal (param 'topic)
-                  (-eval/expr (cadr expr))))
-
-        ((eq (car expr) 'on)
-         (cond ((equal (cdr expr) '(weekdays))
-                (find (weekday) '(monday
-                                  tuesday
-                                  wednesday
-                                  thursday
-                                  friday)))
-               ((equal (cdr expr) '(weekends))
-                (find (weekday) '(sunday
-                                  saturday)))
-               (t (find (weekday) (cdr expr)))))
-
-        ((eq (car expr) 'from)
-         (let ((start (nthcdr 1 expr))
-               (stop  (nthcdr 4 expr)))
-           (and (>= (time-of-day)
-                    (hhmm-seconds (car start) (cadr start)))
-                (<= (time-of-day)
-                    (hhmm-seconds (car stop) (cadr stop))))))
-
-        ((eq (car expr) 'after)
-         (> (time-of-day)
-            (hhmm-seconds (cadr expr) (caddr expr))))
-        ((eq (car expr) 'before)
-         (< (time-of-day)
-            (hhmm-seconds (cadr expr) (caddr expr))))
-
-        (t (error "expression syntax error ~A" (car expr)))))
-
-(defun -eval/args (args)
-  (loop for arg in args collect
-        (if (keywordp arg)
-            arg
-            (-eval/expr arg))))
-
-(defun -eval/body (body)
-  ;; handle SLACK, EMAIL, and other handlers
-  ;; properly evlis'ing the arguments
-  (loop for call in body do
-        (cond ((atom call)
-               (error "invalid WHEN body (~A is not a list)" call))
-              ((not (registered-plugin? (car call)))
-               (error "no plugin ~A registered..." (car call)))
-              (t (dispatch-to-plugin (car call)
-                                     (-eval/args (cdr call))))))
-  t)
-
-(defun -eval/when (clause)
-  (if (-eval/expr `(and ,@(car clause)))
-      (-eval/body (cdr clause))))
-
-(defun -eval/for (form)
-  (if (or (null form) (atom form))
-      (error "invalid form for FOR"))
-  (when (-eval/expr (if (atom (car form))
-                        `(is ,(car form))
-                        (car form)))
-    (loop for clause in (cdr form) do
-          (if (not (eq (car clause) 'when))
-              (error "unexpected ~A clause in FOR (should have been a WHEN)" (car clause)))
-          (when (-eval/when (cdr clause))
-                (return-from -eval/for t))))
-  nil)
-
-(defun -eval/set (form)
-  (if (not (eq (length form) 2))
-      (error "bad SET form"))
-  (setf *environment* (acons (car form)
-                             (-eval/expr (cadr form))
-                             *environment*)))
-
-(defun eval/rules (rules params)
-  (let ((*environment* '())
-        (*parameters* params))
-    (loop for rule in rules do
-          (case (car rule)
-            (for (-eval/for (cdr rule)))
-            (set (-eval/set (cdr rule)))
-            (otherwise (error "syntax error"))))
-    'all-done))

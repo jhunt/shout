@@ -17,7 +17,8 @@
   (or (sb-posix:getenv name)
       default))
 
-(daemon:daemonize :exit-parent t
-                  :pidfile (sb-posix:getenv "PID_FILE"))
+(if (not (env "SHOUT_IT_OUT_LOUD" nil))
+  (daemon:daemonize :exit-parent t
+                    :pidfile (sb-posix:getenv "PID_FILE")))
 (api:run :port    (env "SHOUT_PORT"     api::*default-port*)
          :dbfile  (env "SHOUT_DATABASE" api::*default-dbfile*))
