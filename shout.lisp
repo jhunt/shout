@@ -239,15 +239,19 @@
   t)
 
 (defun -eval/when (clause)
-  (if (-eval/expr `(and ,@(car clause)))
+  (if (or (eq (car clause) '*)
+          (-eval/expr `(and ,@(car clause))))
       (-eval/body (cdr clause))))
 
 (defun -eval/for (form)
-  (if (or (null form) (atom form))
+  (if (or (null form)
+          (and (atom form)
+               (not (eq form '*))))
       (error "invalid form for FOR"))
-  (when (-eval/expr (if (atom (car form))
+  (when (or (eq form '*)
+            (-eval/expr (if (atom (car form))
                         `(is ,(car form))
-                        (car form)))
+                        (car form))))
     (loop for clause in (cdr form) do
           (if (not (eq (car clause) 'when))
               (error "unexpected ~A clause in FOR (should have been a WHEN)" (car clause)))
