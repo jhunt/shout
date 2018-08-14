@@ -1,4 +1,5 @@
 #!/usr/bin/sbcl --script
+(load "~/quicklisp/setup.lisp")
 (require "sb-posix")
 (require "asdf")
 (asdf:load-system :daemon)
