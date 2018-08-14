@@ -21,4 +21,5 @@
   (daemon:daemonize :exit-parent t
                     :pidfile (sb-posix:getenv "PID_FILE")))
 (api:run :port    (env "SHOUT_PORT"     api::*default-port*)
+         :rules   (env "SHOUT_RULES"    api::*default-rules*)
          :dbfile  (env "SHOUT_DATABASE" api::*default-dbfile*))

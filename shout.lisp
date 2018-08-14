@@ -122,20 +122,24 @@
   (replace-all
     (replace-all
       (replace-all
-        (replace-all s "$topic" (param 'topic))
-        "$status" (param 'status))
-      "$message" (param 'message))
-    "$link" (param 'link)))
+        (replace-all s "$topic" (param :topic))
+        "$status" (param :status))
+      "$message" (param :message))
+    "$link" (param :link)))
 
 ; pre-declaration -- will be re-defined shortly.
 (eval-when (:execute)
   (defun -eval/args (args)
     (declare (ignore args))))
 
+(defun sym->key (sym)
+  (find-symbol (symbol-name sym)
+               (find-package "KEYWORD")))
+
 (defun -eval/expr (expr)
   (cond ((atom expr)
          (cond ((symbolp expr)
-                (param expr))
+                (param (sym->key expr)))
                ((stringp expr)
                 (interpolate expr))
                (t expr)))
@@ -168,7 +172,7 @@
         ((eq (car expr) 'lookup)
          (let ((map (cdr (assoc (cadr expr) *environment*))))
            (loop for var in (cddr expr) do
-                 (aif (assoc var map)
+                 (aif (assoc var map :test #'equal)
                    (return-from -eval/expr (cdr it))))
            nil))
 
@@ -180,10 +184,11 @@
                  (t nil)))
 
         ((eq (car expr) 'matches)
+           ;; FIXME : implement cl-ppcre and regex
            nil)
 
         ((eq (car expr) 'is)
-           (equal (param 'topic)
+           (equal (param :topic)
                   (-eval/expr (cadr expr))))
 
         ((eq (car expr) 'on)
@@ -264,19 +269,19 @@
           (case (car rule)
             (for (-eval/for (cdr rule)))
             (set (-eval/set (cdr rule)))
-            (otherwise (error "syntax error"))))
+            (otherwise (error "unexpected top-level form (~A ...)" (car rule)))))
     'all-done))
 
 (defun load/rules (path)
   (with-open-file (in path)
-    (loop for form = (read in)
-          while form
-          collect form)))
+    (let ((*package* (find-package "RULES")))
+      (read in))))
 
 (in-package :api)
 
 (defvar *default-port* 7109)
 (defvar *default-dbfile* #p"/var/shout.db")
+(defvar *default-rules* #p"/var/shout.rules")
 (defvar *default-expiry* 86400)
 
 ;; the base offset of UNIX Epoch time into LISP Universal Time
@@ -338,13 +343,16 @@
 (defun notify-about-state (state event mode edge)
   (rules:eval/rules *rules*
     (pairlis
-      '(topic ok? status last-notified message link)
+      '(:topic :ok? :status :last-notified :message :link)
       (list
         (topic state)
         (event-ok? event)
-        (format t "~A ~A" mode edge)
+        (format nil "~A ~A" mode edge)
+        (last-notified-at state)
         (event-message event)
-        (event-link    event)))))
+        (if (equal (event-link event) "")
+            nil
+            (event-link event))))))
 
 (defun trigger-edge (state event type)
   (notify-about-state state event "now" type))
@@ -513,7 +521,7 @@
 
 (defun run (&key (port *default-port*)
                  (dbfile *default-dbfile*)
-                 rules
+                 (rules *default-rules*)
                  (expiry *default-expiry*))
 
   (format t "reading database from file ~A~%" dbfile)
@@ -527,7 +535,7 @@
   (labels ((arg (args name)
              (nth (+ 1 (position name args)) args)))
     (rules:register-plugin
-      'slack
+      'rules::slack
       #'(lambda (args)
           (slack:send
             (arg args :text)
@@ -535,7 +543,7 @@
             :attachments (list
                            (slack:attach
                              (arg args :attach)
-                             :color (arg args :attach)))))))
+                             :color (arg args :color)))))))
 
   (format t "binding *:~A~%" port)
   (run-api :port port)
