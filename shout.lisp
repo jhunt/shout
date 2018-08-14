@@ -528,6 +528,9 @@
                  (rules *default-rules*)
                  (expiry *default-expiry*))
 
+  (if (stringp port)
+      (setf port (parse-integer port)))
+
   (format t "reading database from file ~A~%" dbfile)
   (setf *states* (read-database dbfile))
 
