@@ -28,7 +28,7 @@ How Do I Use It?
 
 Don't get mad.  We use curl.
 
-    curl -X POST http://localhost:7109/events --data-binary '{
+    curl -X POST http://username:password@localhost:7109/events --data-binary '{
       "topic"       : "some-pipeline",
       "ok"          : true,
       "message"     : "Pipeline build #367 succeeded",
@@ -36,8 +36,10 @@ Don't get mad.  We use curl.
     }'
 
 Shout! keeps track of the `ok`-ness of each topic you create.
-Whenever transitions occur, either a failure (ok -> not ok) or a
-recovery (the opposite), a notification is sent.
+Whenever transitions occur, either a failure (ok -> not ok) or a recovery (the
+opposite), a notification is sent.  By default, the `username:password` pair
+is `shout:shout`, but this can be overridden by setting the `SHOUT_OPS_AUTH`
+environment variable before starting the Shout! process.
 
 No Seriously, How Do I Use It, _For Real_?
 ------------------------------------------
