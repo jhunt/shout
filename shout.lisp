@@ -277,10 +277,9 @@
             (otherwise (error "unexpected top-level form (~A ...)" (car rule)))))
     'all-done))
 
-(defun load/rules (path)
-  (with-open-file (in path)
-    (let ((*package* (find-package "RULES")))
-      (read in))))
+(defun load/rules (str)
+  (let ((*package* (find-package "RULES")))
+    (read-from-string str)))
 
 (in-package :api)
 
@@ -298,6 +297,7 @@
 
 (defvar *states* '())
 (defvar *rules* '())
+(defvar *rules-src* "")
 
 (defclass event ()
   ((message
@@ -493,7 +493,7 @@
                          (mapcar #'(lambda (pair)
                                      (state-json (cdr pair))) db)))))
 
-(defun run-api (&key (port 7109) (ops-auth *default-auth*))
+(defun run-api (&key (port 7109) (ops-auth *default-auth*) (admin-auth *default-auth*))
   ;; GET /state?topic=blah
   (handle-json "/state"
                (with-auth ops-auth
@@ -520,6 +520,19 @@
                    `((oops . "not a POST")
                      (got . ,(request-method *request*))))))
 
+  ;; GET/POST /rules
+  (handle "/rules"
+          (with-auth admin-auth
+            (case (request-method* *request*)
+              (:post
+                (let ((rules-src (raw-post-data :force-text t)))
+                  (setf *rules* (rules:load/rules rules-src))
+                  (setf *rules-src* rules-src)))
+              (:get  *rules-src*)
+              (otherwise
+                (setf (return-code *reply*) 400)
+                (hunchentoot:abort-request-handler)))))
+
   (hunchentoot:start (make-instance 'hunchentoot:easy-acceptor :port port)))
 
 (defun scan (expiry dbfile)
@@ -543,19 +556,15 @@
 
 (defun run (&key (port *default-port*)
                  (dbfile *default-dbfile*)
-                 (rules *default-rules*)
                  (expiry *default-expiry*)
-                 (ops-auth *default-auth*))
+                 (ops-auth *default-auth*)
+                 (admin-auth *default-auth*))
 
   (if (stringp port)
       (setf port (parse-integer port)))
 
   (format t "reading database from file ~A~%" dbfile)
   (setf *states* (read-database dbfile))
-
-  (when rules
-    (format t "loading notification rules from file ~A~%" rules)
-    (setf *rules* (rules:load/rules rules)))
 
   (format t "registering notification plugins...~%")
   (labels ((arg (args name)
@@ -572,7 +581,7 @@
                              :color (arg args :color)))))))
 
   (format t "binding *:~A~%" port)
-  (run-api :port port :ops-auth ops-auth)
+  (run-api :port port :ops-auth ops-auth :admin-auth admin-auth)
 
   (format t "entering upkeep thread main loop...~%")
   (loop

@@ -28,6 +28,13 @@ How Do I Use It?
 
 Don't get mad.  We use curl.
 
+First, upload the rules:
+
+    curl -X POST http://username:password@localhost:7109/rules \
+      --data-binary @path/to/rules-file
+
+After that, you can create events:
+
     curl -X POST http://username:password@localhost:7109/events --data-binary '{
       "topic"       : "some-pipeline",
       "ok"          : true,
@@ -37,9 +44,12 @@ Don't get mad.  We use curl.
 
 Shout! keeps track of the `ok`-ness of each topic you create.
 Whenever transitions occur, either a failure (ok -> not ok) or a recovery (the
-opposite), a notification is sent.  By default, the `username:password` pair
-is `shout:shout`, but this can be overridden by setting the `SHOUT_OPS_AUTH`
-environment variable before starting the Shout! process.
+opposite), a notification is sent.
+
+By default, the `username:password` pair is `shout:shout`, but this can be
+overridden by setting the `SHOUT_OPS_AUTH` environment variable for the
+operations endpoints (/events, /state, and /states) and `SHOUT_ADMIN_AUTH` for
+admin endpoint (/rules) before starting the Shout! process.
 
 No Seriously, How Do I Use It, _For Real_?
 ------------------------------------------

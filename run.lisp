@@ -35,6 +35,6 @@
   (daemon:daemonize :exit-parent t
                     :pidfile (sb-posix:getenv "PID_FILE")))
 (api:run :port    (env "SHOUT_PORT"     api::*default-port*)
-         :rules   (env "SHOUT_RULES"    api::*default-rules*)
          :dbfile  (env "SHOUT_DATABASE" api::*default-dbfile*)
-         :ops-auth (get-auth "SHOUT_OPS_AUTH"))
+         :ops-auth (get-auth "SHOUT_OPS_AUTH")
+         :admin-auth (get-auth "SHOUT_ADMIN_AUTH"))
