@@ -288,6 +288,7 @@
 (defvar *default-dbfile* #p"/var/shout.db")
 (defvar *default-rules* #p"/var/shout.rules")
 (defvar *default-expiry* 86400)
+(defvar *default-auth* '("shout" . "shout"))
 
 ;; the base offset of UNIX Epoch time into LISP Universal Time
 (defvar *EPOCH* (encode-universal-time 0 0 0 1 1 1970 0))
@@ -418,6 +419,19 @@
            (format nil "~A~%" (json:encode-json-to-string
                                 (progn ,@body)))))
 
+(defmacro with-auth (auth &body body)
+  (let ((got-user (gensym))
+        (got-pass (gensym)))
+  `(multiple-value-bind (,got-user ,got-pass)
+    (hunchentoot:authorization)
+    (cond ((or (null ,got-user) (null ,got-pass))
+           (hunchentoot:require-authorization))
+          ((or (not (equal ,got-user (car ,auth)))
+               (not (equal ,got-pass (cdr ,auth))))
+           (setf (return-code *reply*) 403)
+           (hunchentoot:abort-request-handler))
+          (t ,@body)))))
+
 (defun json-body ()
   (decode-json-from-string
     (raw-post-data :force-text t)))
@@ -479,29 +493,32 @@
                          (mapcar #'(lambda (pair)
                                      (state-json (cdr pair))) db)))))
 
-(defun run-api (&key (port 7109))
+(defun run-api (&key (port 7109) (ops-auth *default-auth*))
   ;; GET /state?topic=blah
   (handle-json "/state"
-               (find-state (parameter "topic")))
+               (with-auth ops-auth
+                 (find-state (parameter "topic"))))
 
    ; GET /states
   (handle-json "/states"
-               (mapcar #'(lambda (a)
-                           (state-json (cdr a))) *states*))
+               (with-auth ops-auth
+                 (mapcar #'(lambda (a)
+                    (state-json (cdr a))) *states*)))
   ;; POST /events
   (handle-json "/events"
-               (if (eq (request-method* *request*) :post)
-                 (let ((b (json-body)))
-                   (state-json
-                     (set-state
-                       (jref b :topic)
-                       (make-instance 'event
-                         :message     (jref b :message)
-                         :link        (jref b :link)
-                         :ok          (jref b :ok)
-                         :occurred-at (jref b :ocurred-at)))))
-                 `((oops . "not a POST")
-                   (got . ,(request-method *request*)))))
+               (with-auth ops-auth
+                 (if (eq (request-method* *request*) :post)
+                   (let ((b (json-body)))
+                     (state-json
+                       (set-state
+                         (jref b :topic)
+                         (make-instance 'event
+                           :message     (jref b :message)
+                           :link        (jref b :link)
+                           :ok          (jref b :ok)
+                           :occurred-at (jref b :ocurred-at)))))
+                   `((oops . "not a POST")
+                     (got . ,(request-method *request*))))))
 
   (hunchentoot:start (make-instance 'hunchentoot:easy-acceptor :port port)))
 
@@ -527,7 +544,8 @@
 (defun run (&key (port *default-port*)
                  (dbfile *default-dbfile*)
                  (rules *default-rules*)
-                 (expiry *default-expiry*))
+                 (expiry *default-expiry*)
+                 (ops-auth *default-auth*))
 
   (if (stringp port)
       (setf port (parse-integer port)))
@@ -554,7 +572,7 @@
                              :color (arg args :color)))))))
 
   (format t "binding *:~A~%" port)
-  (run-api :port port)
+  (run-api :port port :ops-auth ops-auth)
 
   (format t "entering upkeep thread main loop...~%")
   (loop
