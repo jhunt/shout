@@ -42,7 +42,7 @@ curl -X GET https://shout-ip/state
 You can also retrieve a single topic's state, by name:
 
 ```
-curl -X GET httos://shout-ip/state/some-pipeline
+curl -X GET https://shout-ip/state/some-pipeline
 ```
 
 Which returns the same interior object as the collection endpoint.
