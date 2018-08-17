@@ -1,5 +1,7 @@
 # The SHOUT! API
 
+## Break/Fix Events
+
 ```
 curl -X POST https://shout-ip/events -d '{
   "topic"       : "some-pipeline",
@@ -50,3 +52,21 @@ previously bad state.
 If _occurred-at_ is not given in the submitted payload, it will be
 set to the current time.  The event's _reported-at_ is always set
 server-side.
+
+## Announcements
+
+```
+curl -X POST https://shout-ip/announcements -d '{
+  "topic"   : "shout-releases",
+  "message" : "Shout v1.2.3 (Mumble) Released!",
+  "link"    : "https://github.com/jhunt/shout/releases/1.2.3"
+}
+```
+
+... which returns:
+
+```
+{
+  "ok" : "Success!"
+}
+```
