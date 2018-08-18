@@ -81,6 +81,7 @@
              (assocify (cddr lst)))))
 
 (defvar *environment* '())
+(defvar *metadata* '())
 (defvar *parameters* '())
 (defvar *plugin-handlers* '())
 
@@ -170,6 +171,13 @@
                  (aif (assoc var map :test #'equal)
                    (return-from -eval/expr (cdr it))))
            nil))
+
+        ((eq (car expr) 'metadata?)
+         (not (null (assoc (cadr expr) *metadata*))))
+
+        ((eq (car expr) 'metadata)
+         (let ((pair (assoc (cadr expr) *metadata*)))
+           (if pair (cdr pair) "")))
 
         ((eq (car expr) 'if)
            (cond ((-eval/expr (cadr expr))
@@ -261,9 +269,10 @@
                              (-eval/expr (cadr form))
                              *environment*)))
 
-(defun eval/rules (rules params)
+(defun eval/rules (rules params metadata)
   (let ((*environment* '())
-        (*parameters* params))
+        (*parameters* params)
+        (*metadata* metadata))
     (loop for rule in rules do
           (case (car rule)
             (for (-eval/for (cdr rule)))
@@ -303,6 +312,9 @@
    (ok
     :initarg :ok
     :accessor event-ok?)
+   (metadata
+    :initarg :metadata
+    :accessor event-metadata)
    (occurred-at
     :initarg :occurred-at
     :initform (unix-now)
@@ -352,7 +364,19 @@
         (event-message event)
         (if (equal (event-link event) "")
             nil
-            (event-link event))))))
+            (event-link event))))
+    (event-metadata event)))
+
+(defun notify-announcement (topic event)
+  (rules:eval/rules *rules*
+    (pairlis
+      '(:announcement? :topic :ok? :status :message :link)
+      (list t topic t "worth looking into..."
+            (event-message event)
+            (if (equal (event-link event) "")
+                nil
+                (event-link event))))
+    (event-metadata event)))
 
 (defun trigger-edge (state event type)
   (notify-about-state state event "now" type))
@@ -439,6 +463,7 @@
     `((occurred_at . ,(event-occurred-at e))
       (reported_at . ,(event-reported-at e))
       (ok          . ,(event-ok? e))
+      (metadata    . ,(event-metadata e))
       (message     . ,(event-message e))
       (link        . ,(event-link e)))))
 
@@ -454,6 +479,7 @@
     (make-instance 'event
                    :message     (jref json :message)
                    :ok          (jref json :ok)
+                   :metadata    (jref json :metadata)
                    :link        (jref json :link)
                    :occurred-at (jref json :occurred-at)
                    :reported-at (jref json :reported-at))))
@@ -503,14 +529,15 @@
                (with-auth ops-auth
                  (if (eq (request-method* *request*) :post)
                    (let ((b (json-body)))
-                     (state-json
-                       (set-state
-                         (jref b :topic)
-                         (make-instance 'event
-                           :message     (jref b :message)
-                           :link        (jref b :link)
-                           :ok          (jref b :ok)
-                           :occurred-at (jref b :ocurred-at)))))
+                     (set-state
+                       (jref b :topic)
+                       (make-instance 'event
+                         :message     (jref b :message)
+                         :link        (jref b :link)
+                         :ok          (jref b :ok)
+                         :metadata    (jref b :metadata)
+                         :occurred-at (jref b :ocurred-at)))
+                     `((ok . "Success!")))
                    `((oops . "not a POST")
                      (got . ,(request-method *request*))))))
 

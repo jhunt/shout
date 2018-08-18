@@ -22,7 +22,11 @@ ls)
   "topic":   "'"$topic"'",
   "message": "'"$message"'",
   "link":    "'"$link"'",
-  "ok":      '$ok'
+  "ok":      '$ok',
+  "metadata": {
+    "build-id": "'$RANDOM'",
+    "date"    : "'$(date)'"
+  }
 }
 ' | jq -r . ;;
 esac

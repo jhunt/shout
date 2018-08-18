@@ -8,7 +8,11 @@ curl -X POST https://shout-ip/events -d '{
   "ok"          : true,
   "message"     : "Pipeline build #367 succeeded",
   "link"        : "https://ci/p/some-pipeline/367",
-  "occurred-at" : 2208990000
+  "occurred-at" : 2208990000,
+  "metadata"    : {
+    "optional"  : "metadata values",
+    "that-get"  : "passed through untouched"
+  }
 }'
 ```
 
@@ -16,30 +20,7 @@ curl -X POST https://shout-ip/events -d '{
 
 ```
 {
-  "name"  : "some-pipeline",
-  "state" : "working",
-
-  "previous" : {
-    "occurred-at" : 2208989999,
-    "reported-at" : 2208989999,
-    "ok"          : false,
-    "message"     : "Pipeline build #366 failed",
-    "link"        : "https://ci/p/some-pipeline/366"
-  },
-  "first" : {
-    "occurred-at" : 2208990000,
-    "reported-at" : 2208990004,
-    "ok"          : true,
-    "message"     : "Pipeline build #367 succeeded",
-    "link"        : "https://ci/p/some-pipeline/367"
-  },
-  "last" : {
-    "occurred-at" : 2208990000,
-    "reported-at" : 2208990004,
-    "ok"          : true,
-    "message"     : "Pipeline build #367 succeeded",
-    "link"        : "https://ci/p/some-pipeline/367"
-  }
+  "ok" : "Success!"
 }
 ```
 
@@ -52,6 +33,12 @@ previously bad state.
 If _occurred-at_ is not given in the submitted payload, it will be
 set to the current time.  The event's _reported-at_ is always set
 server-side.
+
+The _metadata_ key is optional, and provides user-definied (and
+user-managed) key-value pairs that can be used to populate
+messages, augment notification handling, or whatever you want.
+Shout! neither interprets nor acts on your metadata of its own
+accord.
 
 ## Announcements
 

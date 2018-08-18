@@ -260,6 +260,16 @@ The following expressions are defined:
   Errors are signaled if <tt><em>map-var-name</em></tt> isn't a map
   variable, or if no value could be found for any of the given keys.
 
+- <tt>(metadata? <em>var-name</em>)</tt>
+
+  Returns true if the event in question came with the metadata
+  variable <tt><em>var-name</em></tt> set.
+
+- <tt>(metadata <em>var-name</em>)</tt>
+
+  Returns the value of the metadata variable
+  <tt><em>var-name</em></tt>, or the empty string, if not set.
+
 - <tt>(is <em>quoted-literal</em>)</tt>
 
   A literal and explicit match against the current topic will be made.
