@@ -1,10 +1,10 @@
-#!/usr/bin/sbcl --script
+#!/usr/bin/env sbcl --script
 (load "~/quicklisp/setup.lisp")
 (require "sb-posix")
 (require "asdf")
-(asdf:load-system :daemon)
+(asdf:load-system :shout)
 
-(load "shout.lisp")
+;;(load "shout.lisp")
 (format t " ######  ##     ##  #######  ##     ## ######## #### ~%")
 (format t "##    ## ##     ## ##     ## ##     ##    ##    #### ~%")
 (format t "##       ##     ## ##     ## ##     ##    ##    #### ~%")
