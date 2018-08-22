@@ -251,7 +251,7 @@
           (and (atom form)
                (not (eq form '*))))
       (error "invalid form for FOR"))
-  (when (or (eq form '*)
+  (when (or (eq (car form) '*)
             (-eval/expr (if (atom (car form))
                         `(is ,(car form))
                         (car form))))
@@ -394,12 +394,11 @@
   (let ((edge (transition-state
                 (last-event state)
                 event)))
-    (if (not (eq (event-ok? (last-event state))
-                 (event-ok? event)))
-      (progn
-        (trigger-edge state event edge)
-        (setf (previous-event state)
-              (last-event     state))))
+    (when (not (eq (event-ok? (last-event state))
+                   (event-ok? event)))
+      (trigger-edge state event edge)
+      (setf (previous-event state)
+            (last-event     state)))
 
     (setf (status-of state) edge
           (last-event state) event)
@@ -536,7 +535,7 @@
                          :link        (jref b :link)
                          :ok          (jref b :ok)
                          :metadata    (jref b :metadata)
-                         :occurred-at (jref b :ocurred-at)))
+                         :occurred-at (jref b :occurred-at)))
                      `((ok . "Success!")))
                    `((oops . "not a POST")
                      (got . ,(request-method *request*))))))

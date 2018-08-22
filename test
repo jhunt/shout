@@ -1,7 +1,8 @@
 #!/bin/bash
 
-./cli something broken "something is working"
+./cli up
+./cli something ok "something is working"
 sleep 1
-./cli something broken "something is still ok"
+./cli something ok "something is still ok"
 ./cli something broken "something is broken"
 ./cli ls
