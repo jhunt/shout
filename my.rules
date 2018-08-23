@@ -1,8 +1,11 @@
+; vim:ft=lisp:et
 ((for *
       (when *
         (slack :webhook "http://example.com/..."
                :text "$topic is $status"
                :color (if ok? "good" "danger")
-               :attach (if link
-                           "$message <$link>"
-                           "$message")))))
+               :attach (concat
+                         (if link
+                             "$message <$link>"
+                             "$message")
+                         "build-id: $[build-id] ($[date])")))))

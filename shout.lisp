@@ -115,13 +115,11 @@
           while pos)))
 
 (defun interpolate (s)
-  (replace-all
-    (replace-all
-      (replace-all
-        (replace-all s "$topic" (param :topic))
-        "$status" (param :status))
-      "$message" (param :message))
-    "$link" (param :link)))
+  (loop for n in '(:topic :status :message :link) do
+        (setf s (replace-all s (format nil "$~(~A~)" (symbol-name n)) (param n))))
+  (loop for pair in *metadata* do
+        (setf s (replace-all s (format nil "$[~(~A~)]" (symbol-name (car pair))) (cdr pair))))
+  s)
 
 ; pre-declaration -- will be re-defined shortly.
 (eval-when (:execute)
@@ -173,10 +171,10 @@
            nil))
 
         ((eq (car expr) 'metadata?)
-         (not (null (assoc (cadr expr) *metadata*))))
+         (not (null (assoc (sym->key (cadr expr)) *metadata*))))
 
         ((eq (car expr) 'metadata)
-         (let ((pair (assoc (cadr expr) *metadata*)))
+         (let ((pair (assoc (sym->key (cadr expr)) *metadata*)))
            (if pair (cdr pair) "")))
 
         ((eq (car expr) 'if)

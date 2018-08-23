@@ -144,6 +144,22 @@ Likewise, it stops evaluating WHEN rules once a match is found.
 
 ### Rules Language Reference
 
+#### String Interpolation
+
+Shout! interpolates two embedded forms of variable references in
+strings, under certain conditions.
+
+    "$link"
+
+This is called a _builtin variable_, and there are fixed number of
+these.  For break/fix notifications, `$message`, `$topic`,
+`$status`, and `$link`.
+
+    "$[meta-data]"
+
+This references metadata supplied to an event or announcement by
+the end user.
+
 #### Top-Level Forms
 
 - <tt>(for <em>topic-condition</em> <em>when-clause...</em>)</tt>
