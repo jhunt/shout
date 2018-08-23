@@ -1,5 +1,5 @@
 #!/usr/bin/env sbcl --script
-(load "~/quicklisp/setup.lisp")
+(load "build/quicklisp/setup.lisp")
 (require "sb-posix")
 (require "asdf")
 (asdf:load-system :shout)
