@@ -3,7 +3,7 @@
 ## Break/Fix Events
 
 ```
-curl -X POST https://shout-ip/events -d '{
+curl -u shout:shout -X POST https://shout-ip/events -d '{
   "topic"       : "some-pipeline",
   "ok"          : true,
   "message"     : "Pipeline build #367 succeeded",
@@ -43,7 +43,7 @@ accord.
 ## Announcements
 
 ```
-curl -X POST https://shout-ip/announcements -d '{
+curl -u shout:shout -X POST https://shout-ip/announcements -d '{
   "topic"   : "shout-releases",
   "message" : "Shout v1.2.3 (Mumble) Released!",
   "link"    : "https://github.com/jhunt/shout/releases/1.2.3"
