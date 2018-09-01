@@ -91,13 +91,13 @@
 
 (defun register-plugin (plugin fn)
   (setf *plugin-handlers*
-        (acons plugin fn *plugin-handlers*)))
+        (acons (sym->key plugin) fn *plugin-handlers*)))
 
 (defun registered-plugin? (plugin)
-  (not (null (assoc plugin *plugin-handlers*))))
+  (not (null (assoc (sym->key plugin) *plugin-handlers*))))
 
 (defun dispatch-to-plugin (plugin args)
-  (let ((fn (cdr (assoc plugin *plugin-handlers*))))
+  (let ((fn (cdr (assoc (sym->key plugin) *plugin-handlers*))))
     (if fn
         (funcall fn args)
         (error "no such plugin ~A" plugin))))
@@ -143,7 +143,7 @@
                (t expr)))
 
         ((eq (car expr) 'not)
-         (not (-eval/expr (cdr expr))))
+         (not (-eval/expr (cadr expr))))
 
         ((eq (car expr) 'and)
          (loop for sub in (cdr expr) do
