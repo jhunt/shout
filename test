@@ -1,8 +1,0 @@
-#!/bin/bash
-
-./cli up
-./cli something ok "something is working"
-sleep 1
-./cli something ok "something is still ok"
-./cli something broken "something is broken"
-./cli ls

@@ -49,20 +49,24 @@
 
 (in-package :rules)
 
+(defvar *NOW* nil)
+(defun now ()
+  (or *NOW* (get-universal-time)))
+
+
 (defmacro aif (test &body body)
   `(let ((it ,test))
       (if it ,@body)))
 
 (defun weekday (&optional n)
-  (nth (or n (nth-value 6 (decode-universal-time
-                            (get-universal-time))))
+  (nth (or n (nth-value 6 (decode-universal-time (now))))
        '(monday tuesday wednesday thursday friday
          saturday sunday)))
 
 (defun time-of-day ()
   (multiple-value-bind
         (s m h)
-        (decode-universal-time (get-universal-time))
+        (decode-universal-time (now))
     (+ (* h 3600)
        (* m 60)
        s)))

@@ -2,3 +2,4 @@
 *.pid
 /shout
 /build
+/coverage

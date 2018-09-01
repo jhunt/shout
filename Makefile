@@ -41,6 +41,7 @@ $(BUILD)/.reqs:
 	           --eval '(ql:quickload :drakma)'       \
 	           --eval '(ql:quickload :cl-json)'      \
 	           --eval '(ql:quickload :daemon)'       \
+	           --eval '(ql:quickload :prove)'        \
 	           --eval '(load "$(NAME).asd")' --quit
 	touch $@
 
