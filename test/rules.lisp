@@ -1,5 +1,3 @@
-(defpackage :shout-test
-  (:use :cl :prove))
 (in-package :shout-test)
 
 (defvar *no-params*   '())

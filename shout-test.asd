@@ -4,6 +4,8 @@
 (in-package :shout-test-asd)
 
 (defsystem shout-test
-  :components ((:file "test/rules"))
+  :components ((:file "test/packages")
+               (:file "test/rules")
+               (:file "test/states"))
   :depends-on (#:shout
                #:prove))

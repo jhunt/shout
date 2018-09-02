@@ -316,6 +316,7 @@
     :accessor event-ok?)
    (metadata
     :initarg :metadata
+    :initform ()
     :accessor event-metadata)
    (occurred-at
     :initarg :occurred-at
@@ -389,8 +390,7 @@
         ((and (not (event-ok? e1))
               (event-ok? e2))
          "fixed")
-        ((and (event-ok? e2))
-         "working")))
+        (t "working")))
 
 (defun ingest-event (state event)
   (let ((edge (transition-state

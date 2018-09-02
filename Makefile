@@ -50,3 +50,6 @@ libs: $(BUILD)/.reqs ;
 all: quicklisp libs
 clean:
 	rm -rf $(BUILD)
+
+test: libs
+	./run-tests.lisp
