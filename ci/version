@@ -1,0 +1,8 @@
+#!/bin/bash
+VERSION=${1:-${VERSION:-(development)}}
+RELEASE=${2:-"Unspoken"}
+cat > version.lisp <<EOF
+(in-package :api)
+(defvar *release-version* "$VERSION")
+(defvar *release-name*    "$RELEASE")
+EOF

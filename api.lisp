@@ -242,6 +242,11 @@
                                      (state-json (cdr pair))) db)))))
 
 (defun run-api (&key (port 7109) (ops-auth *default-auth*) (admin-auth *default-auth*))
+  ;; GET /info
+  (handle-json "/info"
+               `((version . ,*release-version*)
+                 (release . ,*release-name*)))
+
   ;; GET /state?topic=blah
   (handle-json (debug-endpoint "/state")
                (with-auth ops-auth

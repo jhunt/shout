@@ -1,5 +1,20 @@
 # The SHOUT! API
 
+## Version and Release Information
+
+```
+curl https://shout-ip/info
+```
+
+... which returns:
+
+```
+{
+  "version": "0.1.0",
+  "release": "Whisper"
+}
+```
+
 ## Break/Fix Events
 
 ```
