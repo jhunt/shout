@@ -5,6 +5,7 @@
 (defvar *default-rules* #p"/var/shout.rules")
 (defvar *default-expiry* 86400)
 (defvar *default-auth* '("shout" . "shout"))
+(defvar *debug-prefix* nil)
 
 ;; the base offset of UNIX Epoch time into LISP Universal Time
 (defvar *EPOCH* (encode-universal-time 0 0 0 1 1 1970 0))
@@ -150,6 +151,20 @@
            (format nil "~A~%" (json:encode-json-to-string
                                 (progn ,@body)))))
 
+(defun random-string (&optional (length 32) (alphabet "0123456789abcdefghjkmnpqrtvwxyz"))
+  (let ((rs (make-random-state t)))
+    (loop with s = (make-string length)
+          with len = (length alphabet)
+          for i below length
+          do (setf (aref s i)
+                   (aref alphabet (random len rs)))
+          finally (return s))))
+
+(defun debug-endpoint (url)
+  (when (null *debug-prefix*)
+    (setf *debug-prefix* (random-string 12)))
+  (format nil "/~A~A" *debug-prefix* url))
+
 (defmacro with-auth (auth &body body)
   (let ((got-user (gensym))
         (got-pass (gensym)))
@@ -228,12 +243,12 @@
 
 (defun run-api (&key (port 7109) (ops-auth *default-auth*) (admin-auth *default-auth*))
   ;; GET /state?topic=blah
-  (handle-json "/state"
+  (handle-json (debug-endpoint "/state")
                (with-auth ops-auth
                  (find-state (parameter "topic"))))
 
    ; GET /states
-  (handle-json "/states"
+  (handle-json (debug-endpoint "/states")
                (with-auth ops-auth
                  (mapcar #'(lambda (a)
                     (state-json (cdr a))) *states*)))
@@ -317,6 +332,7 @@
   (format t "binding *:~A~%" port)
   (run-api :port port :ops-auth ops-auth :admin-auth admin-auth)
 
+  (format t "debugging endpoints accessible under /~A/...~%" *debug-prefix*)
   (format t "entering upkeep thread main loop...~%")
   (loop
     (scan expiry dbfile)
