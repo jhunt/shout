@@ -16,6 +16,7 @@
   :serial t
   :components ((:file "packages")
                (:file "version")
+               (:file "shout")
                (:file "rules")
                (:file "api")
                (:file "slack"))

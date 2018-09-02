@@ -48,9 +48,14 @@ $(BUILD)/.reqs:
 
 libs: $(BUILD)/.reqs ;
 
-all: quicklisp libs
+all: shout
+shout: quicklisp libs
+	$(LISPEXEC) compile.lisp
+
+test: quicklisp libs
+	$(LISPEXEC) test.lisp
+
 clean:
 	rm -rf $(BUILD)
 
-test: quicklisp libs
-	$(LISPEXEC) ./run-tests.lisp
+.PHONY: all test clean

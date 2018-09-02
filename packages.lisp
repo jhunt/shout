@@ -7,6 +7,10 @@
   (:export :send
            :attach))
 
+(defpackage :shout
+  (:use :cl)
+  (:export :shout))
+
 (defpackage :rules
   (:use :cl)
   (:export :register-plugin
