@@ -257,6 +257,24 @@
                (with-auth ops-auth
                  (mapcar #'(lambda (a)
                     (state-json (cdr a))) *states*)))
+
+  ;; POST /announce
+  (handle-json "/announcements"
+               (with-auth ops-auth
+                 (if (eq (request-method* *request*) :post)
+                   (let ((b (json-body)))
+                     (notify-announcement
+                       (jref b :topic)
+                       (make-instance 'event
+                         :message     (jref b :message)
+                         :link        (jref b :link)
+                         :ok          (jref b :ok)
+                         :metadata    (jref b :metadata)
+                         :occurred-at (jref b :occurred-at)))
+                     `((ok . "Success!")))
+                   `((oops . "not a POST")
+                     (got . ,(request-method *request*))))))
+
   ;; POST /events
   (handle-json "/events"
                (with-auth ops-auth
