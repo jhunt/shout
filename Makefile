@@ -2,6 +2,7 @@ NAME := shout
 
 LISP     := sbcl
 LISPOPTS := --no-sysinit --no-userinit
+LISPEXEC := $(LISP) --script
 
 BUILD := build
 BUILDAPP = $(BUILD)/buildapp
@@ -51,5 +52,5 @@ all: quicklisp libs
 clean:
 	rm -rf $(BUILD)
 
-test: libs
-	./run-tests.lisp
+test: quicklisp libs
+	$(LISPEXEC) ./run-tests.lisp

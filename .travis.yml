@@ -1,0 +1,13 @@
+---
+language: lisp
+sudo: required
+
+env:
+  matrix:
+    - LISP=sbcl
+
+install:
+  - ./ci/install
+
+script:
+  - make test
