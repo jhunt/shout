@@ -11,12 +11,6 @@ You need `sbcl`, Steel Bank Common Lisp.  Once you have that:
 
     sbcl --script run.lisp
 
-If you want to hack around:
-
-    sbcl --load shout.lisp --eval '(api:run)'
-
-to get a Lisp REPL (read/eval/print loop).
-
 No Seriously, How Do I Run It, _In Production_?
 -----------------------------------------------
 

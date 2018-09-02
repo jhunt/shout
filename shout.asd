@@ -14,7 +14,10 @@
   :long-description "A configurable notifications gateway server"
 
   :serial t
-  :components ((:file "shout"))
+  :components ((:file "packages")
+               (:file "rules")
+               (:file "api")
+               (:file "slack"))
 
   :depends-on (#:hunchentoot
                #:drakma
