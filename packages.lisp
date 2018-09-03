@@ -14,8 +14,8 @@
 (defpackage :rules
   (:use :cl)
   (:export :register-plugin
-           :eval/rules
-           :load/rules))
+           :evaluate
+           :parse))
 
 (defpackage :api
   (:use :cl

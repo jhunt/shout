@@ -78,7 +78,7 @@
           (unix-now))))
 
 (defun notify-about-state (state event mode edge)
-  (let ((result (rules:eval/rules *rules*
+  (let ((result (rules:evaluate *rules*
                   (pairlis
                     '(:topic :ok? :status :last-notified :message :link)
                     (list
@@ -96,7 +96,7 @@
             (cdr result)))))
 
 (defun notify-announcement (topic event)
-  (rules:eval/rules *rules*
+  (rules:evaluate *rules*
     (pairlis
       '(:announcement? :topic :ok? :status :message :link)
       (list t topic t "worth looking into..."
@@ -310,7 +310,7 @@
             (case (request-method* *request*)
               (:post
                 (let ((rules-src (raw-post-data :force-text t)))
-                  (setf *rules* (rules:load/rules rules-src))
+                  (setf *rules* (rules:parse rules-src))
                   (setf *rules-src* rules-src)))
               (:get  *rules-src*)
               (otherwise

@@ -20,8 +20,8 @@
         (t (format nil "(~{~A ~})" (mapcar #'parse form)))))
 
 (defun try (rules &key params metadata)
-  (rules:eval/rules
-    (rules:load/rules (parse rules))
+  (rules:evaluate
+    (rules:parse (parse rules))
     (or params *no-params*)
     (or metadata *no-metadata*)))
 

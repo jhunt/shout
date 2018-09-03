@@ -235,7 +235,7 @@
                              (-eval/expr (cadr form))
                              *environment*)))
 
-(defun eval/rules (rules params metadata)
+(defun evaluate (rules params metadata)
   (let ((*environment* '())
         (*reminder* nil)
         (*parameters* params)
@@ -247,6 +247,6 @@
             (otherwise (error "unexpected top-level form (~A ...)" (car rule)))))
     *reminder*))
 
-(defun load/rules (str)
+(defun parse (str)
   (let ((*package* (find-package "RULES")))
     (read-from-string str)))
