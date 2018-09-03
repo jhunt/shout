@@ -5,17 +5,18 @@
 
 (defsystem shout
   :name        "shout"
-  :version     "0.0.1"
+  :version     "0.1.0"
   :maintainer  "James Hunt"
   :author      "James Hunt"
   :license     "MIT"
 
   :description      "Shout!"
-  :long-description "A configurable notifications gateway server"
+  :long-description "A Programmable Notification Gateway"
 
   :serial t
   :components ((:file "packages")
                (:file "version")
+               (:file "io")
                (:file "shout")
                (:file "rules")
                (:file "api")

@@ -7,18 +7,23 @@
   (:export :send
            :attach))
 
-(defpackage :shout
+(defpackage :io
   (:use :cl)
+  (:export :infof
+           :debugf))
+
+(defpackage :shout
+  (:use :cl :io)
   (:export :shout))
 
 (defpackage :rules
-  (:use :cl)
+  (:use :cl :io)
   (:export :register-plugin
            :evaluate
            :parse))
 
 (defpackage :api
-  (:use :cl
+  (:use :cl :io
         :hunchentoot
         :cl-json)
   (:export :run

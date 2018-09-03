@@ -3,6 +3,7 @@
 (defvar *default-daemon-mode*   t)
 (defvar *default-pidfile*       #p"/var/run/shout.pid")
 (defvar *default-port*          "7109")
+(defvar *default-log-level*     "none")
 (defvar *default-database-file* #p"/var/db/shout.db")
 (defvar *default-credentials*   "shout:shout")
 
@@ -21,6 +22,7 @@
                    (pidfile           (env "SHOUT_PIDFILE"     *default-pidfile*))
                    (port              (env "SHOUT_PORT"        *default-port*))
                    (database-file     (env "SHOUT_DATABASE"    *default-database-file*))
+                   (log-level         (env "SHOUT_LOG_LEVEL"   *default-log-level*))
                    (ops-credentials   (env "SHOUT_OPS_CREDS"   (env "SHOUT_CREDS" *default-credentials*)))
                    (admin-credentials (env "SHOUT_ADMIN_CREDS" (env "SHOUT_CREDS" *default-credentials*))))
 
@@ -36,6 +38,12 @@
       (format t "##    ## ##     ## ##     ## ##     ##    ##    #### ~%")
       (format t " ######  ##     ##  #######   #######     ##    #### ~%")
       (format t "starting up...~%")))
+
+  (setf *log-level*
+        (case log-level
+          (("info"  "INFO")  :info)
+          (("debug" "DEBUG") :debug)
+          (otherwise nil)))
 
   (api:run :port       port
            :dbfile     database-file

@@ -12,7 +12,8 @@ ENV SHOUT_IT_OUT_LOUD=yes \
     SHOUT_DATABASE=/db \
     SHOUT_PORT=7100 \
     SHOUT_OPS_CREDS=shouty:abouty \
-    SHOUT_ADMIN_CREDS=admin:sadmin
+    SHOUT_ADMIN_CREDS=admin:sadmin \
+    SHOUT_LOG_LEVEL=info
 
 EXPOSE 7100
 CMD ["/shout"]

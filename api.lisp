@@ -78,6 +78,8 @@
           (unix-now))))
 
 (defun notify-about-state (state event mode edge)
+  (infof "attempting notification for ~A (~A ~A) with message ~S"
+         (topic state) mode edge (event-message event))
   (let ((result (rules:evaluate *rules*
                   (pairlis
                     '(:topic :ok? :status :last-notified :message :link)
@@ -96,6 +98,8 @@
             (cdr result)))))
 
 (defun notify-announcement (topic event)
+  (debugf "attempting notification for ~A (announcement) with message ~S"
+          topic (event-message event))
   (rules:evaluate *rules*
     (pairlis
       '(:announcement? :topic :ok? :status :message :link)
@@ -320,7 +324,10 @@
   (hunchentoot:start (make-instance 'hunchentoot:easy-acceptor :port port)))
 
 (defun scan (dbfile)
+  (infof "writing database to file ~A" dbfile)
   (write-database dbfile *states*)
+
+  (infof "scanning for reminders that need to be sent...")
   (loop for pair in *states*
         do (let ((state (cdr pair)))
              (when (state-needs-reminder? state)

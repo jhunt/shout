@@ -191,28 +191,32 @@
     ((:s :sec :second :seconds) magnitude)))
 
 (defun -eval/body (body)
-  ;; handle SLACK, EMAIL, and other handlers
-  ;; properly evlis'ing the arguments
+  (debugf "evaluating a WHEN body")
   (loop for call in body do
         (cond ((atom call)
                (error "invalid WHEN body (~A is not a list)" call))
               ((eq (sym->key (car call)) :remind)
+               (debugf "evaluating a REMIND form, to set a reminder")
                (setf *reminder*
                      (cons :remind
                            (time-lapse (cadr call)
                                        (caddr call)))))
               ((not (registered-plugin? (car call)))
                (error "no plugin ~A registered..." (car call)))
-              (t (dispatch-to-plugin (car call)
-                                     (-eval/args (cdr call))))))
+              (t
+                (debugf "executing a (~A) notification plugin" (car call))
+                (dispatch-to-plugin (car call)
+                                    (-eval/args (cdr call))))))
   t)
 
 (defun -eval/when (clause)
+  (debugf "evaluating a WHEN form")
   (if (or (eq (car clause) '*)
           (-eval/expr `(and ,@(car clause))))
       (-eval/body (cdr clause))))
 
 (defun -eval/for (form)
+  (debugf "evaluating a FOR form")
   (if (or (null form)
           (and (atom form)
                (not (eq form '*))))
@@ -241,6 +245,7 @@
         (*parameters* params)
         (*metadata* metadata))
     (loop for rule in rules do
+          (debugf "evaluating top-level (~A ...) rule" (car rule))
           (case (car rule)
             (for (-eval/for (cdr rule)))
             (set (-eval/set (cdr rule)))
