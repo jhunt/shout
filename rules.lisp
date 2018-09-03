@@ -182,12 +182,25 @@
             arg
             (-eval/expr arg))))
 
+(defvar *reminder* nil)
+(defun time-lapse (magnitude unit)
+  (ecase (sym->key unit)
+    ((:d :day :days)            (* magnitude 86400))
+    ((:h :hour :hours)          (* magnitude  3600))
+    ((:m :min :minute :minutes) (* magnitude    60))
+    ((:s :sec :second :seconds) magnitude)))
+
 (defun -eval/body (body)
   ;; handle SLACK, EMAIL, and other handlers
   ;; properly evlis'ing the arguments
   (loop for call in body do
         (cond ((atom call)
                (error "invalid WHEN body (~A is not a list)" call))
+              ((eq (sym->key (car call)) :remind)
+               (setf *reminder*
+                     (cons :remind
+                           (time-lapse (cadr call)
+                                       (caddr call)))))
               ((not (registered-plugin? (car call)))
                (error "no plugin ~A registered..." (car call)))
               (t (dispatch-to-plugin (car call)
@@ -224,6 +237,7 @@
 
 (defun eval/rules (rules params metadata)
   (let ((*environment* '())
+        (*reminder* nil)
         (*parameters* params)
         (*metadata* metadata))
     (loop for rule in rules do
@@ -231,7 +245,7 @@
             (for (-eval/for (cdr rule)))
             (set (-eval/set (cdr rule)))
             (otherwise (error "unexpected top-level form (~A ...)" (car rule)))))
-    'all-done))
+    *reminder*))
 
 (defun load/rules (str)
   (let ((*package* (find-package "RULES")))

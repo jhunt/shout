@@ -1,6 +1,8 @@
 ; vim:ft=lisp:et
-((for *
+((remind 1 hour)
+ (for *
       (when *
+        (remind 5 minutes)
         (slack :webhook "http://example.com/..."
                :text "$topic is $status"
                :color (if ok? "good" "danger")

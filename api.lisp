@@ -47,9 +47,12 @@
    (status
     :initarg :status
     :accessor status-of)
-   (notified-at
+   (last-notified-at
     :initform nil
     :accessor last-notified-at)
+   (remind-every
+    :initform nil
+    :accessor remind-every)
    (previous-event
     :initarg :previous-event
     :initform nil
@@ -68,20 +71,29 @@
        (last-event st)
        (event-ok? (last-event st))))
 
+(defun state-needs-reminder? (st)
+  (and (not (state-is-ok? st))
+       (remind-every st)
+       (< (+ (last-notified-at st) (remind-every st))
+          (unix-now))))
+
 (defun notify-about-state (state event mode edge)
-  (rules:eval/rules *rules*
-    (pairlis
-      '(:topic :ok? :status :last-notified :message :link)
-      (list
-        (topic state)
-        (event-ok? event)
-        (format nil "~A ~A" mode edge)
-        (last-notified-at state)
-        (event-message event)
-        (if (equal (event-link event) "")
-            nil
-            (event-link event))))
-    (event-metadata event)))
+  (let ((result (rules:eval/rules *rules*
+                  (pairlis
+                    '(:topic :ok? :status :last-notified :message :link)
+                    (list
+                      (topic state)
+                      (event-ok? event)
+                      (format nil "~A ~A" mode edge)
+                      (last-notified-at state)
+                      (event-message event)
+                      (if (equal (event-link event) "")
+                        nil
+                        (event-link event))))
+                  (event-metadata event))))
+    (setf (remind-every state)
+          (if (and result (eq (car result) :remind))
+            (cdr result)))))
 
 (defun notify-announcement (topic event)
   (rules:eval/rules *rules*
@@ -307,24 +319,13 @@
 
   (hunchentoot:start (make-instance 'hunchentoot:easy-acceptor :port port)))
 
-(defun scan (expiry dbfile)
+(defun scan (dbfile)
   (write-database dbfile *states*)
-  (let ((deadline (- (unix-now) expiry)))
-    (labels ((f (lst)
-                (if (not (null lst))
-                  (let ((state (cdar lst)))
-                    (if (and (not (state-is-ok? state))
-                             (last-notified-at state)
-                             (> deadline (last-notified-at state)))
-                      (progn
-                        (notify-about-state
-                          state
-                          (last-event state)
-                          "still"
-                          (status-of state))
-                        (setf (last-notified-at state) (unix-now))))
-                    (f (cdr lst))))))
-      (f *states*))))
+  (loop for pair in *states*
+        do (let ((state (cdr pair)))
+             (when (state-needs-reminder? state)
+               (notify-about-state
+                 state (last-event state) "still" (status-of state))))))
 
 (defun run (&key (port *default-port*)
                  (dbfile *default-dbfile*)
@@ -358,5 +359,5 @@
   (format t "debugging endpoints accessible under /~A/...~%" *debug-prefix*)
   (format t "entering upkeep thread main loop...~%")
   (loop
-    (scan expiry dbfile)
+    (scan dbfile)
     (sleep 60)))

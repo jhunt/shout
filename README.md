@@ -117,6 +117,10 @@ like this:
          ; how to notify, if the FOR and WHEN parameters
          ; are met.
 
+         ;; if this is still broken in a half hour,
+         ;; notify me again (re-evaluating rules)
+         (remind 30 minutes)
+
          ;; send a slack notification
          (slack :webhook "$webhook"
                 :text    "$topic is $status: $message"

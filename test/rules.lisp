@@ -245,4 +245,14 @@
   (is-syntax-error `((for * (when ((after 0800 bc)) (made-it "fail")))))
   (ok t))
 
+(subtest "Notification Reminders"
+  (is (cons :remind (* 86400))
+      (try
+        `((for *
+            (when *
+              (remind 24 hours)
+              (made-it "notified")))))
+      "Evaluating the ruleset should return the 24h reminder")
+  (triggers "notified"))
+
 (finalize)
