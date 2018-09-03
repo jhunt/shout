@@ -1,5 +1,6 @@
 *.db
 *.pid
 /shout
+/docker/shout
 /build
 /coverage

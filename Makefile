@@ -59,7 +59,7 @@ coverage: quicklisp libs
 
 docker: shout
 	cp shout docker/shout
-	docker build docker
+	docker build -t huntprod/shout docker
 
 clean:
 	rm -rf $(BUILD)

@@ -17,6 +17,9 @@ No Seriously, How Do I Run It, _In Production_?
 Production?  Well why didn't you say so?  I recommend our
 [BOSH release][bosh]; it's very popular this time of year.
 
+We also have a Docker image, [huntprod/shout][docker], if
+that's your cup of tea.
+
 How Do I Use It?
 ----------------
 
@@ -468,4 +471,5 @@ How Do I Contribute?
 
 
 [bosh]:      https://github.com/jhunt/shout-boshrelease
+[docker]:    https://dockerhub.com/r/huntprod/shout
 [concourse]: https://github.com/jhunt/shout-resource
