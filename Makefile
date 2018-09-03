@@ -57,6 +57,10 @@ test: quicklisp libs
 coverage: quicklisp libs
 	$(LISPEXEC) cover.lisp
 
+docker: shout
+	cp shout docker/shout
+	docker build docker
+
 clean:
 	rm -rf $(BUILD)
 
