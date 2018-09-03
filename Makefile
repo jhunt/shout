@@ -54,6 +54,8 @@ shout: quicklisp libs
 
 test: quicklisp libs
 	$(LISPEXEC) test.lisp
+coverage: quicklisp libs
+	$(LISPEXEC) cover.lisp
 
 clean:
 	rm -rf $(BUILD)

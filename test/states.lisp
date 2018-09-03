@@ -44,9 +44,6 @@
       "A state with an ok last-event should be ok"))
 
 (subtest "State transitions"
-  (ok (null (api::find-state *topic*))
-      "Should start out with no 'test-topic' state")
-
   (transition t   :status "working")
   (transition nil :status "broken")
   (transition t   :status "fixed")
