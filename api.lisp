@@ -210,6 +210,8 @@
 (defun state-json (st)
   `((name     . ,(topic st))
     (state    . ,(status-of st))
+    (notified . ,(last-notified-at st))
+    (reminder . ,(remind-every st))
     (previous . ,(event-json (previous-event st)))
     (first    . ,(event-json (first-event st)))
     (last     . ,(event-json (last-event st)))))
@@ -226,11 +228,13 @@
 
 (defun state-from-json (json)
   (make-instance 'state
-                 :name   (jref json :name)
-                 :status (jref json :status)
-                 :previous-event (event-from-json (jref json :previous))
-                 :first-event    (event-from-json (jref json :first))
-                 :last-event     (event-from-json (jref json :last))))
+                 :name             (jref json :name)
+                 :status           (jref json :status)
+                 :last-notified-at (jref json :notified)
+                 :remind-every     (jref json :reminder)
+                 :previous-event   (event-from-json (jref json :previous))
+                 :first-event      (event-from-json (jref json :first))
+                 :last-event       (event-from-json (jref json :last))))
 
 (defun read-database (path)
   (let ((raw (with-open-file (in path :direction :input :if-does-not-exist nil)
