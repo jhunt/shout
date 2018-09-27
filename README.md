@@ -331,11 +331,11 @@ The following expressions are defined:
   the value of the `$TZ` environment variable).  The <tt><em>hour</em></tt>
   values must be specified in `HHMM` format, i.e. `0830` for 8:30.
 
-- <tt>(after <em>hour</em> <em>am/pm</em>)
+- <tt>(after <em>hour</em> <em>am/pm</em>)</tt>
 
   Equivalent to a `(from ...)` expression, if the `to` clause were ignored.
 
-- <tt>(before <em>hour</em> <em>am/pm</em>)
+- <tt>(before <em>hour</em> <em>am/pm</em>)</tt>
 
   Equivalent to a `(from ...)` expression, if the `from` clause were ignored.
 
