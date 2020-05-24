@@ -409,7 +409,7 @@ is the same as NOT-ing a bunch of ORs:
 The Shout! FOR evaluator support regular expressions via the
 `(~ ...)` and `(re ...)` forms:
 
-    (for (~ "*-pipeline"))
+    (for (~ "*-pipeline")
       (when ...))
 
 ... or if you prefer Perl-compatible Regular Expression syntax:
