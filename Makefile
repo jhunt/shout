@@ -58,8 +58,7 @@ coverage: quicklisp libs
 	$(LISPEXEC) cover.lisp
 
 docker: shout
-	cp shout docker/shout
-	docker build -t huntprod/shout docker
+	docker build -t huntprod/shout .
 
 clean:
 	rm -rf $(BUILD)
