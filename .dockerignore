@@ -1,2 +1,4 @@
 **
-!/shout
+!/Makefile
+!*.lisp
+!*.asd

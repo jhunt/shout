@@ -37,6 +37,7 @@ endif
 quicklisp: $(QLDIR)/setup.lisp ;
 
 $(BUILD)/.reqs:
+	mkdir -p $(BUILD)
 	@echo "Downloading requirements"
 	$(LISP_QL) --eval '(ql:quickload :hunchentoot)'  \
 	           --eval '(ql:quickload :drakma)'       \
@@ -57,7 +58,7 @@ test: quicklisp libs
 coverage: quicklisp libs
 	$(LISPEXEC) cover.lisp
 
-docker: shout
+docker:
 	docker build -t huntprod/shout .
 
 clean:
