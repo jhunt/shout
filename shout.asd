@@ -1,9 +1,5 @@
 ;; vim:ft=lisp
-(defpackage :shout-asd
-  (:use :cl :asdf))
-(in-package :shout-asd)
-
-(defsystem shout
+(defsystem "shout"
   :name        "shout"
   :version     "0.0.1"
   :maintainer  "James Hunt"
@@ -13,13 +9,12 @@
   :description      "Shout!"
   :long-description "A configurable notifications gateway server"
 
-  :serial t
   :components ((:file "packages")
-               (:file "version")
-               (:file "shout")
-               (:file "rules")
-               (:file "api")
-               (:file "slack"))
+               (:file "version" :depends-on ("packages"))
+               (:file "shout" :depends-on ("packages"))
+               (:file "rules" :depends-on ("packages"))
+               (:file "api" :depends-on ("packages"))
+               (:file "slack" :depends-on ("packages")))
 
   :depends-on (#:hunchentoot
                #:drakma
