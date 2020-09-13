@@ -1,27 +1,27 @@
-FROM huntprod/cl-dev AS build
+FROM huntprod/cl
 WORKDIR /cl
-
-RUN apt-get update \
- && apt-get install -y curl
-
 ENV BUILD=/lib/cl
 ENV CL_SOURCE_REGISTRY=/cl
 
-COPY Makefile .
-run make quicklisp libs
-
-COPY . .
-RUN make shout
-
-############################################
-
-FROM ubuntu:18.04
-
 RUN apt-get update \
- && apt-get install -y libssl1.0.0 \
+ && apt-get install -y curl make \
  && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /cl/shout /shout
+COPY Makefile .
+RUN make quicklisp libs
+
+COPY . .
+RUN make shout \
+ && mv shout /shout
+
+ARG BUILD_DATE
+ARG VCS_REF
+LABEL maintainer="James Hunt <images@huntprod.com>" \
+      summary="Run SHOUT! in a container" \
+      org.label-schema.build-date=$BUILD_DATE \
+      org.label-schema.vcs-url="https://github.com/jhunt/shout.git" \
+      org.label-schema.vcs-ref=$VCS_REF \
+      org.label-schema.schema-version="1.0.0"
 
 ENV SHOUT_IT_OUT_LOUD=yes \
     SHOUT_DATABASE=/db \
